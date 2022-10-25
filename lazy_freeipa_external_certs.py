@@ -52,11 +52,11 @@ except Exception as e:
     print(e)
     sys.exit(CODES.STATUS_UNKNOWN)
 
-if (days_till_expire_http <= expiration_time) or (days_till_expire_ldap <= expiration_time):
+if (days_till_expire_http.days <= expiration_time) or (days_till_expire_ldap.days <= expiration_time):
     print('WARN: Certificates are expiring in less than {} days'.format(expiration_time))
     sys.exit(CODES.STATUS_WARN)
 
-if (days_till_expire_http <= critical_time) or (days_till_expire_ldap <= critical_time):
+if (days_till_expire_http.days <= critical_time) or (days_till_expire_ldap.days <= critical_time):
     print('CRIT: Certificates are expiring in less than {} days'.format(critical_time))
     sys.exit(CODES.STATUS_CRIT)
 
