@@ -99,3 +99,46 @@ class ipaapi(object):
         results = request.json()
 
         return results
+
+    def make_request_no_item(self, pdict):
+        """
+        Starts the request to the IPA API
+        """
+        results = None
+        ipaurl = 'https://{0}/ipa'.format(self.server)
+        session_url = '{0}/session/json'.format(ipaurl)
+        header = {
+                'referer': ipaurl,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+        }
+
+        data = {
+                'id': 0,
+                'method': pdict['method'],
+                'params': [[], pdict['params']]
+        }
+
+        self.log.debug('Making request {0} to {1}'.format(
+            pdict['method'],
+            session_url)
+        )
+
+        request = self.session.post(session_url, headers=header,
+                                    data=json.dumps(data),
+                                    verify=self.sslverify
+        )
+
+        results = request.json()
+
+        return results
+
+
+    def cert_find(self, params={}, sizelimit=40000):
+        """
+        Finds certificates in a simple manner. This does not work for external
+        CA's
+        """
+        m = {'method': 'cert_find/1', 'params': params}
+        results = self.make_request_no_item(m)
+        return results
