@@ -7,6 +7,7 @@ import json
 import logging
 import requests
 import ldap
+import dns.resolver
 
 class CODES:
     """
@@ -17,6 +18,23 @@ class CODES:
     STATUS_CRIT = 2
     STATUS_UNKNOWN = 3
     STATUS_DEPENDENT = 4
+
+class ipadns(object):
+    """
+    DNS Class Wrapper for Nagios
+    """
+    def __init__(self, domain=None, host=None):
+        """
+        Start up the module
+        """
+        self.domain = domain
+        self.host = host
+
+    def get_all_dcs(self):
+        """
+        Gets all the DC's from DNS
+        """
+        print()
 
 class ipaldap(object):
     """
