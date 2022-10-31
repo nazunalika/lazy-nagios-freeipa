@@ -5,6 +5,7 @@ init lib
 
 import json
 import logging
+import string
 import requests
 import ldap
 import dns.resolver
@@ -28,13 +29,24 @@ class ipadns(object):
         Start up the module
         """
         self.domain = domain
+        self.realm = domain.upper()
         self.host = host
+        self.python_module_version = dns.__version__
 
     def get_all_dcs(self):
         """
         Gets all the DC's from DNS
         """
-        print()
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_ldap._tcp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_ldap._tcp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
 
 class ipaldap(object):
     """
@@ -158,5 +170,13 @@ class ipaapi(object):
         CA's
         """
         m = {'method': 'cert_find/1', 'params': params}
+        results = self.make_request_no_item(m)
+        return results
+
+    def config_show(self, params={}):
+        """
+        Gets the general configuration of the IPA domain
+        """
+        m = {'method': 'config_show/1', 'params': params}
         results = self.make_request_no_item(m)
         return results
