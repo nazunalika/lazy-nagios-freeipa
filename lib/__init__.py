@@ -33,7 +33,7 @@ class ipadns(object):
         self.host = host
         self.python_module_version = dns.__version__
 
-    def get_all_dcs(self):
+    def get_all_ldap_srv(self):
         """
         Gets all the DC's from DNS
         """
@@ -47,6 +47,130 @@ class ipadns(object):
             list_of_dcs.append(str(data.target).rstrip('.'))
 
         return list_of_dcs
+
+    def get_krb_text_record(self):
+        """
+        Verifies if TXT record exists for realm
+
+        This record must be a single TXT record and must be "REALM" (yes, that
+        realm must be in double quotes)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kerberos.' + self.domain, 'TXT')
+        else:
+            answers = dns.resolver.resolve('_kerberos.' + self.domain, 'TXT')
+
+        TXTRECS = []
+        for data in answers:
+            TXTRECS.append(str(data))
+
+        if len(TXTRECS) >= 1:
+            return False
+
+        if TXTRECS[0] == '"' + self.realm + '"':
+            return True
+        else:
+            return False
+
+    def get_all_udp_krb_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kerberos._udp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kerberos._udp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_tcp_krb_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kerberos._tcp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kerberos._tcp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_udp_krb_master_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kerberos-master._udp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kerberos-master._udp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_tcp_krb_master_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kerberos-master._tcp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kerberos-master._tcp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_udp_krb_kpasswd_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kpasswd._udp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kpasswd._udp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_tcp_krb_kpasswd_srv(self):
+        """
+        Gets all the DC's from DNS (kerb)
+        """
+        if self.python_module_version.split('.')[0] == "1":
+            answers = dns.resolver.query('_kpasswd._tcp.' + self.domain, 'SRV')
+        else:
+            answers = dns.resolver.resolve('_kpasswd._tcp.' + self.domain, 'SRV')
+
+        list_of_dcs = []
+        for data in answers:
+            list_of_dcs.append(str(data.target).rstrip('.'))
+
+        return list_of_dcs
+
+    def get_all_dcs(self):
+        """
+        Gets all the DC's from DNS
+
+        All DC's should have a LDAP SRV record.
+        """
+        all_dcs = self.get_all_ldap_srv()
+
+        return all_dcs
 
 class ipaldap(object):
     """

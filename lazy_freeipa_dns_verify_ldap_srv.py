@@ -56,5 +56,5 @@ if check is True:
     print('OK: DNS records appear to be correct')
     sys.exit(CODES.STATUS_OK)
 else:
-    print('CRIT: Some replicas are missing DNS records.')
+    print('CRIT: DNS appears to be missing LDAP SRV records for replicas.')
     sys.exit(CODES.STATUS_CRIT)
