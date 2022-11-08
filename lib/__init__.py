@@ -176,6 +176,315 @@ class ipaldap(object):
     """
     LDAP Class Wrapper for Nagios
     """
+    def __init__(self, server, domain, login_user, login_password, sslverify=True):
+        """
+        Start up the module
+        """
+        # Users
+        self.users = None
+        self.susers = None
+        self.pusers = None
+        # Hosts and services
+        self.hosts = None
+        self.services = None
+        # Groups
+        self.ugroups = None
+        self.hgroups = None
+        self.ngroups = None
+        # Policies
+        self.hbac = None
+        self.sudo = None
+        # Net
+        self.zones = None
+        self.certs = None
+        # LDAP specific
+        self.conflicts = None
+        self.ghosts = None
+        self.bind = None
+        self.replicas = None
+        self.healthy_agreements = None
+        # AD
+        self.msdcs = None
+
+        # Login
+        self.login_user = login_user
+        self.domain = domain
+        self.basedn = 'dc=' + self.domain.replace('.', ',dc=')
+        self.binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self.basedn
+        self.bindpw = login_password
+        self.url = 'ldaps://' + server
+        self.short_hostname = server.replace('.{}'.format(domain), '')
+        self.conn = self._get_conn()
+
+        if not self.conn:
+            return
+
+        self.fqdn = self._get_fqdn()
+        self.short_hostname = self.fqdn.replace('.{}'.format(domain), '')
+        context = self._get_context()
+        if self.basedn != context:
+            return
+
+    @staticmethod
+    def _get_ldap_msg(err):
+        """
+        LDAP Message Service
+        """
+        msg = err
+        if hasattr(err, 'message'):
+            msg = err.message
+            if 'desc' in err.message:
+                msg = err.message['desc']
+            elif hasattr(err, 'args'):
+                msg = err.args[0]['desc']
+        return msg
+
+    def _get_conn(self):
+        """
+        LDAP Connection ervice
+        """
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+
+        try:
+            lconn = ldap.initialize(self.url)
+            lconn.set_option(ldap.OPT_NETWORK_TIMEOUT, 3)
+            lconn.set_option(ldap.OPT_REFERRALS, ldap.OPT_OFF)
+            lconn.simple_bind_s(self.binddn, self.bindpw)
+        except(
+            ldap.SERVER_DOWN,
+            ldap.NO_SUCH_OBJECT,
+            ldap.INVALID_CREDENTIALS,
+        ):
+            return False
+
+        return lconn
+
+    def _search(self, base, lfilter, attrs=None, scope=ldap.SCOPE_SUBTREE):
+        """
+        LDAP Search Function - Everything uses this
+        """
+        try:
+            return self.conn.search_s(base, scope, lfilter, attrs)
+        except (ldap.NO_SUCH_OBJECT, ldap.SERVER_DOWN) as err:
+            print(err)
+            return False
+        except ldap.REFERRAL:
+            exit(1)
+
+    def _get_context(self):
+        """
+        LDAP Context Service
+        """
+        results = self._search(
+            'cn=config',
+            '(objectClass=*)',
+            ['nsslapd-defaultnamingcontext'],
+            scope=ldap.SCOPE_BASE
+        )
+
+        if not results and type(results) is not list:
+            res = None
+        else:
+            dn, attrs = results[0]
+            res = attrs['nsslapd-defaultnamingcontext'][0].decode('utf-8')
+
+        return res
+
+    def _get_fqdn(self):
+        """
+        Get the FQDN of the host we're looking for
+        """
+        results = self._search(
+            'cn=config',
+            '(objectClass=*)',
+            ['nsslapd-localhost'],
+            scope=ldap.SCOPE_BASE
+        )
+
+        if not results and type(results) is not list:
+            res = None
+        else:
+            dn, attrs = results[0]
+            res = attrs['nsslapd-localhost'][0].decode('utf-8')
+
+        return res
+
+    # All user types
+    def _get_users(self):
+        results = self._search(
+                'cn=users,cn=accounts,{}'.format(self.basedn),
+                '(objectClass=person)'
+        )
+        return results
+
+    def _get_stage_users(self):
+        results = self._search(
+                'cn=staged users,cn=accounts,cn=provisioning,{}'.format(self.basedn),
+                '(objectClass=person)'
+        )
+        return results
+
+    def _get_preserved_users(self):
+        results = self._search(
+                'cn=deleted users,cn=accounts,cn=provisioning,{}'.format(self.basedn),
+                '(objectClass=person)'
+        )
+        return results
+
+    # Groups
+    def _get_user_groups(self):
+        results = self._search(
+                'cn=groups,cn=accounts,{}'.format(self.basedn),
+                '(objectClass=ipausergroup)'
+        )
+        return results
+
+    def _get_host_groups(self):
+        results = self._search(
+                'cn=hostgroups,cn=accounts,{}'.format(self.basedn),
+                '(objectClass=ipahostgroup)'
+        )
+        return results
+
+    def _count_netgroups(self):
+        results = self._search(
+                'cn=ng,cn=alt,{}'.format(self.basedn),
+                '(ipaUniqueID=*)',
+                None,
+                scope=ldap.SCOPE_ONELEVEL
+        )
+        return results
+
+    # Hosts and services
+    def _get_hosts(self):
+        results = self._search(
+                'cn=computers,cn=accounts,{}'.format(self.basedn),
+                '(fqdn=*)'
+        )
+        return results
+
+    def _get_services(self):
+        results = self._search(
+                'cn=services,cn=accounts,{}'.format(self.basedn),
+                '(krbprincipalname=*)'
+        )
+        return results
+
+    def _get_hbac_rules(self):
+        results = self._search(
+                'cn=hbac,{}'.format(self.basedn),
+                '(ipaUniqueID=*)',
+                scope=ldap.SCOPE_ONELEVEL
+        )
+        return results
+
+    def _get_sudo_rules(self):
+        results = self._search(
+                'cn=sudorules,cn=sudo,{}'.format(self.basedn),
+                '(ipaUniqueID=*)',
+                scope=ldap.SCOPE_ONELEVEL
+        )
+        return results
+
+    def _get_dns_zones(self):
+        results = self._search(
+                'cn=dns,{}'.format(self.basedn),
+                '(|(objectClass=idnszone)(objectClass=idnsforwardzone))',
+                scope=ldap.SCOPE_ONELEVEL
+        )
+        return results
+
+    def _get_certificates(self):
+        results = self._search(
+                'ou=certificateRepository,ou=ca,o=ipaca',
+                '(certStatus=*)',
+                ['subjectName'],
+                scope=ldap.SCOPE_ONELEVEL
+        )
+        return results
+
+    # LDAP Related stuff
+    def _get_ldap_conflicts(self):
+        results = self._search(
+                self.basedn,
+                '(|(nsds5ReplConflict=*)(&(objectclass=ldapsubentry)(nsds5ReplConflict=*)))',
+                ['nsds5ReplConflict']
+        )
+
+        return results
+
+    def _get_ghost_replicas(self):
+        results = self._search(
+                self.basedn,
+                '(&(objectclass=nstombstone)(nsUniqueId=ffffffff-ffffffff-ffffffff-ffffffff))',
+                ['nscpentrywsi']
+        )
+        r = 0
+        if type(results) == list and len(results) > 0:
+            dn, attrs = results[0]
+            for attr in attrs['nscpentrywsi']:
+                if 'replica ' in str(attr) and 'ldap' not in str(attr):
+                    r += 1
+        return r
+
+    def _get_anon_bind(self):
+        results = self._search(
+            'cn=config',
+            '(objectClass=*)',
+            ['nsslapd-allow-anonymous-access'],
+            scope=ldap.SCOPE_BASE
+        )
+        dn, attrs = results[0]
+        state = attrs['nsslapd-allow-anonymous-access'][0].decode('utf-8')
+
+        if state in ['on', 'off', 'rootdse']:
+            r = str(state).upper()
+        else:
+            r = 'ERROR'
+
+        return r
+
+    def _get_ms_adtrust(self):
+        record = '_kerberos._tcp.Default-First-Site-Name._sites.dc._msdcs.{}'.format(self.domain)
+        r = False
+        try:
+            answers = dns.resolver.resolve(record, 'SRV')
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
+            return r
+
+        for answer in answers:
+            if self.fqdn in answer.to_text():
+                r = True
+                return r
+
+        return r
+
+    def _replication_agreements(self):
+        msg = []
+        healthy = True
+        suffix = self.basedn.replace('=', '\\3D').replace(',', '\\2C')
+        results = self._search(
+                'cn=replica,cn={},cn=mapping tree,cn=config'.format(suffix),
+                '(objectClass=*)',
+                ['nsDS5ReplicaHost', 'nsds5replicaLastUpdateStatus'],
+                scope=ldap.SCOPE_ONELEVEL
+        )
+
+        for result in results:
+            dn, attrs = result
+            host = attrs['nsDS5ReplicaHost'][0].decode('utf-8')
+            host = host.replace('.{}'.format(self.domain), '')
+            status = attrs['nsds5replicaLastUpdateStatus'][0].decode('utf-8')
+            status = status.replace('Error ', '').partition(' ')[0].strip('()')
+            if status not in ['0', '18']:
+                healthy = False
+            msg.append('{} {}'.format(host, status))
+
+        r1 = '\n'.join(msg)
+        r2 = healthy
+        return r1, r2
+
+    # All Properties (aka the variables we need to set)
 
 class ipaapi(object):
     """
