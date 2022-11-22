@@ -28,7 +28,7 @@ class ipadns(object):
         """
         Start up the module
         """
-        self.domain = domain
+        self._domain = domain
         self.realm = domain.upper()
         self.host = host
         self.python_module_version = dns.__version__
@@ -38,9 +38,9 @@ class ipadns(object):
         Gets all the DC's from DNS
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_ldap._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_ldap._tcp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_ldap._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_ldap._tcp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -56,9 +56,9 @@ class ipadns(object):
         realm must be in double quotes)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kerberos.' + self.domain, 'TXT')
+            answers = dns.resolver.query('_kerberos.' + self._domain, 'TXT')
         else:
-            answers = dns.resolver.resolve('_kerberos.' + self.domain, 'TXT')
+            answers = dns.resolver.resolve('_kerberos.' + self._domain, 'TXT')
 
         TXTRECS = []
         for data in answers:
@@ -77,9 +77,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kerberos._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kerberos._udp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kerberos._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kerberos._udp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -92,9 +92,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kerberos._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kerberos._tcp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kerberos._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kerberos._tcp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -107,9 +107,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kerberos-master._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kerberos-master._udp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kerberos-master._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kerberos-master._udp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -122,9 +122,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kerberos-master._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kerberos-master._tcp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kerberos-master._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kerberos-master._tcp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -137,9 +137,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kpasswd._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kpasswd._udp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kpasswd._udp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kpasswd._udp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -152,9 +152,9 @@ class ipadns(object):
         Gets all the DC's from DNS (kerb)
         """
         if self.python_module_version.split('.')[0] == "1":
-            answers = dns.resolver.query('_kpasswd._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.query('_kpasswd._tcp.' + self._domain, 'SRV')
         else:
-            answers = dns.resolver.resolve('_kpasswd._tcp.' + self.domain, 'SRV')
+            answers = dns.resolver.resolve('_kpasswd._tcp.' + self._domain, 'SRV')
 
         list_of_dcs = []
         for data in answers:
@@ -176,54 +176,60 @@ class ipaldap(object):
     """
     LDAP Class Wrapper for Nagios
     """
-    def __init__(self, server, domain, login_user, login_password, sslverify=True):
+    def __init__(self, server, domain, bind_user, login_password, sslverify=True):
         """
         Start up the module
         """
         # Users
-        self.users = None
-        self.susers = None
-        self.pusers = None
+        self._users = None
+        self._susers = None
+        self._pusers = None
         # Hosts and services
-        self.hosts = None
-        self.services = None
+        self._hosts = None
+        self._services = None
         # Groups
-        self.ugroups = None
-        self.hgroups = None
-        self.ngroups = None
+        self._ugroups = None
+        self._hgroups = None
+        self._ngroups = None
         # Policies
-        self.hbac = None
-        self.sudo = None
+        self._hbac = None
+        self._sudo = None
         # Net
-        self.zones = None
-        self.certs = None
+        self._zones = None
+        self._certs = None
         # LDAP specific
-        self.conflicts = None
-        self.ghosts = None
-        self.bind = None
-        self.replicas = None
-        self.healthy_agreements = None
+        self._conflicts = None
+        self._ghosts = None
+        self._anonbind = None
+        self._replicas = None
+        self._healthy_agreements = None
         # AD
-        self.msdcs = None
+        self._msdcs = None
 
         # Login
-        self.login_user = login_user
-        self.domain = domain
-        self.basedn = 'dc=' + self.domain.replace('.', ',dc=')
-        self.binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self.basedn
-        self.bindpw = login_password
-        self.url = 'ldaps://' + server
-        self.short_hostname = server.replace('.{}'.format(domain), '')
-        self.conn = self._get_conn()
+        self._domain = domain
+        self._basedn = 'dc=' + self._domain.replace('.', ',dc=')
+        #self._binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self._basedn
+        self._binddn = bind_user
+        self._bindpw = login_password
+        self._url = 'ldaps://' + server
+        self._short_hostname = server.replace('.{}'.format(domain), '')
+        self._conn = self._get_conn()
 
-        if not self.conn:
-            return
+        if self._conn is False:
+            return None
 
-        self.fqdn = self._get_fqdn()
-        self.short_hostname = self.fqdn.replace('.{}'.format(domain), '')
+        self._fqdn = self._get_fqdn()
+        if self._fqdn is None:
+            # WARNING: If the account cannot read cn=config, we will fall back
+            # to the server name provided. This may or may not be a good idea.
+            self._fqdn = server
+
+        self._short_hostname = self._fqdn.replace('.{}'.format(domain), '')
+
         context = self._get_context()
-        if self.basedn != context:
-            return
+        if self._basedn != context:
+            return None
 
     @staticmethod
     def _get_ldap_msg(err):
@@ -241,20 +247,20 @@ class ipaldap(object):
 
     def _get_conn(self):
         """
-        LDAP Connection ervice
+        LDAP Connection service
         """
         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 
         try:
-            lconn = ldap.initialize(self.url)
+            lconn = ldap.initialize(self._url)
             lconn.set_option(ldap.OPT_NETWORK_TIMEOUT, 3)
             lconn.set_option(ldap.OPT_REFERRALS, ldap.OPT_OFF)
-            lconn.simple_bind_s(self.binddn, self.bindpw)
-        except(
-            ldap.SERVER_DOWN,
-            ldap.NO_SUCH_OBJECT,
-            ldap.INVALID_CREDENTIALS,
-        ):
+            lconn.simple_bind_s(self._binddn, self._bindpw)
+        except(ldap.SERVER_DOWN):
+            return None
+        except(ldap.NO_SUCH_OBJECT):
+            return None
+        except(ldap.INVALID_CREDENTIALS):
             return False
 
         return lconn
@@ -264,7 +270,7 @@ class ipaldap(object):
         LDAP Search Function - Everything uses this
         """
         try:
-            return self.conn.search_s(base, scope, lfilter, attrs)
+            return self._conn.search_s(base, scope, lfilter, attrs)
         except (ldap.NO_SUCH_OBJECT, ldap.SERVER_DOWN) as err:
             print(err)
             return False
@@ -282,7 +288,9 @@ class ipaldap(object):
             scope=ldap.SCOPE_BASE
         )
 
-        if not results and type(results) is not list:
+        if (not results and type(results) is not list) or len(results) == 0:
+            # falling back
+            #res = self._basedn
             res = None
         else:
             dn, attrs = results[0]
@@ -301,7 +309,8 @@ class ipaldap(object):
             scope=ldap.SCOPE_BASE
         )
 
-        if not results and type(results) is not list:
+        if (not results and type(results) is not list) or len(results) == 0:
+            # falling back
             res = None
         else:
             dn, attrs = results[0]
@@ -312,21 +321,21 @@ class ipaldap(object):
     # All user types
     def _get_users(self):
         results = self._search(
-                'cn=users,cn=accounts,{}'.format(self.basedn),
+                'cn=users,cn=accounts,{}'.format(self._basedn),
                 '(objectClass=person)'
         )
         return results
 
     def _get_stage_users(self):
         results = self._search(
-                'cn=staged users,cn=accounts,cn=provisioning,{}'.format(self.basedn),
+                'cn=staged users,cn=accounts,cn=provisioning,{}'.format(self._basedn),
                 '(objectClass=person)'
         )
         return results
 
     def _get_preserved_users(self):
         results = self._search(
-                'cn=deleted users,cn=accounts,cn=provisioning,{}'.format(self.basedn),
+                'cn=deleted users,cn=accounts,cn=provisioning,{}'.format(self._basedn),
                 '(objectClass=person)'
         )
         return results
@@ -334,21 +343,21 @@ class ipaldap(object):
     # Groups
     def _get_user_groups(self):
         results = self._search(
-                'cn=groups,cn=accounts,{}'.format(self.basedn),
+                'cn=groups,cn=accounts,{}'.format(self._basedn),
                 '(objectClass=ipausergroup)'
         )
         return results
 
     def _get_host_groups(self):
         results = self._search(
-                'cn=hostgroups,cn=accounts,{}'.format(self.basedn),
+                'cn=hostgroups,cn=accounts,{}'.format(self._basedn),
                 '(objectClass=ipahostgroup)'
         )
         return results
 
     def _count_netgroups(self):
         results = self._search(
-                'cn=ng,cn=alt,{}'.format(self.basedn),
+                'cn=ng,cn=alt,{}'.format(self._basedn),
                 '(ipaUniqueID=*)',
                 None,
                 scope=ldap.SCOPE_ONELEVEL
@@ -358,21 +367,21 @@ class ipaldap(object):
     # Hosts and services
     def _get_hosts(self):
         results = self._search(
-                'cn=computers,cn=accounts,{}'.format(self.basedn),
+                'cn=computers,cn=accounts,{}'.format(self._basedn),
                 '(fqdn=*)'
         )
         return results
 
     def _get_services(self):
         results = self._search(
-                'cn=services,cn=accounts,{}'.format(self.basedn),
+                'cn=services,cn=accounts,{}'.format(self._basedn),
                 '(krbprincipalname=*)'
         )
         return results
 
     def _get_hbac_rules(self):
         results = self._search(
-                'cn=hbac,{}'.format(self.basedn),
+                'cn=hbac,{}'.format(self._basedn),
                 '(ipaUniqueID=*)',
                 scope=ldap.SCOPE_ONELEVEL
         )
@@ -380,7 +389,7 @@ class ipaldap(object):
 
     def _get_sudo_rules(self):
         results = self._search(
-                'cn=sudorules,cn=sudo,{}'.format(self.basedn),
+                'cn=sudorules,cn=sudo,{}'.format(self._basedn),
                 '(ipaUniqueID=*)',
                 scope=ldap.SCOPE_ONELEVEL
         )
@@ -388,7 +397,7 @@ class ipaldap(object):
 
     def _get_dns_zones(self):
         results = self._search(
-                'cn=dns,{}'.format(self.basedn),
+                'cn=dns,{}'.format(self._basedn),
                 '(|(objectClass=idnszone)(objectClass=idnsforwardzone))',
                 scope=ldap.SCOPE_ONELEVEL
         )
@@ -406,7 +415,7 @@ class ipaldap(object):
     # LDAP Related stuff
     def _get_ldap_conflicts(self):
         results = self._search(
-                self.basedn,
+                self._basedn,
                 '(|(nsds5ReplConflict=*)(&(objectclass=ldapsubentry)(nsds5ReplConflict=*)))',
                 ['nsds5ReplConflict']
         )
@@ -415,7 +424,7 @@ class ipaldap(object):
 
     def _get_ghost_replicas(self):
         results = self._search(
-                self.basedn,
+                self._basedn,
                 '(&(objectclass=nstombstone)(nsUniqueId=ffffffff-ffffffff-ffffffff-ffffffff))',
                 ['nscpentrywsi']
         )
@@ -445,7 +454,7 @@ class ipaldap(object):
         return r
 
     def _get_ms_adtrust(self):
-        record = '_kerberos._tcp.Default-First-Site-Name._sites.dc._msdcs.{}'.format(self.domain)
+        record = '_kerberos._tcp.Default-First-Site-Name._sites.dc._msdcs.{}'.format(self._domain)
         r = False
         try:
             answers = dns.resolver.resolve(record, 'SRV')
@@ -453,7 +462,7 @@ class ipaldap(object):
             return r
 
         for answer in answers:
-            if self.fqdn in answer.to_text():
+            if self._fqdn in answer.to_text():
                 r = True
                 return r
 
@@ -462,7 +471,7 @@ class ipaldap(object):
     def _replication_agreements(self):
         msg = []
         healthy = True
-        suffix = self.basedn.replace('=', '\\3D').replace(',', '\\2C')
+        suffix = self._basedn.replace('=', '\\3D').replace(',', '\\2C')
         results = self._search(
                 'cn=replica,cn={},cn=mapping tree,cn=config'.format(suffix),
                 '(objectClass=*)',
@@ -473,7 +482,7 @@ class ipaldap(object):
         for result in results:
             dn, attrs = result
             host = attrs['nsDS5ReplicaHost'][0].decode('utf-8')
-            host = host.replace('.{}'.format(self.domain), '')
+            host = host.replace('.{}'.format(self._domain), '')
             status = attrs['nsds5replicaLastUpdateStatus'][0].decode('utf-8')
             status = status.replace('Error ', '').partition(' ')[0].strip('()')
             if status not in ['0', '18']:
@@ -485,6 +494,113 @@ class ipaldap(object):
         return r1, r2
 
     # All Properties (aka the variables we need to set)
+    @property
+    def users(self):
+        if not self._users:
+            self._users = self._get_users()
+        return self._users
+
+    @property
+    def susers(self):
+        if not self._susers:
+            self._susers = self._get_stage_users()
+        return self._susers
+
+    @property
+    def pusers(self):
+        if not self._pusers:
+            self._pusers = self._get_preserved_users()
+        return self._pusers
+
+    @property
+    def hosts(self):
+        if not self._hosts:
+            self._hosts = self._get_hosts()
+        return self._hosts
+
+    @property
+    def services(self):
+        if not self._services:
+            self._services = self._get_services()
+        return self._services
+
+    @property
+    def ugroups(self):
+        if not self._ugroups:
+            self._ugroups = self._get_user_groups()
+        return self._ugroups
+
+    @property
+    def hgroups(self):
+        if not self._hgroups:
+            self._hgroups = self._get_host_groups()
+        return self._hgroups
+
+    @property
+    def ngroups(self):
+        if not self._ngroups:
+            self._ngroups = self._count_netgroups()
+        return self._ngroups
+
+    @property
+    def hbac(self):
+        if not self._hbac:
+            self._hbac = self._get_hbac_rules()
+        return self._hbac
+
+    @property
+    def sudo(self):
+        if not self._sudo:
+            self._sudo = self._get_sudo_rules()
+        return self._sudo
+
+    @property
+    def zones(self):
+        if not self._zones:
+            self._zones = self._get_dns_zones()
+        return self._zones
+
+    @property
+    def certs(self):
+        if not self._certs:
+            self._certs = self._get_certificates()
+        return self._certs
+
+    @property
+    def conflicts(self):
+        if not self._conflicts:
+            self._conflicts = self._get_ldap_conflicts()
+        return self._conflicts
+
+    @property
+    def ghosts(self):
+        if not self._ghosts:
+            self._ghosts = self._get_ghost_replicas()
+        return self._ghosts
+
+    @property
+    def bind(self):
+        if not self._anonbind:
+            self._anonbind = self._get_anon_bind()
+        return self._anonbind
+
+    @property
+    def msdcs(self):
+        if not self._msdcs:
+            self._msdcs = self._get_ms_adtrust()
+        return self._msdcs
+
+    @property
+    def replicas(self):
+        if not self._replicas:
+            self._replicas, self._healthy_agreements = self._replication_agreements()
+        return self._replicas
+
+    @property
+    def healthy_agreements(self):
+        if not self._healthy_agreements:
+            self._replicas, self._healthy_agreements = self._replication_agreements()
+        return self._healthy_agreements
 
 class ipaapi(object):
     """
