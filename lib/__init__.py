@@ -3,6 +3,7 @@
 init lib
 """
 
+import sys
 import json
 import logging
 import string
@@ -275,7 +276,7 @@ class ipaldap(object):
             print(err)
             return False
         except ldap.REFERRAL:
-            exit(1)
+            sys.exit(1)
 
     def _get_context(self):
         """
@@ -729,3 +730,546 @@ class ipaapi(object):
         m = {'method': 'config_show/1', 'params': params}
         results = self.make_request_no_item(m)
         return results
+
+class monitorldap(object):
+    """
+    LDAP Class Wrapper for Nagios on the monitor database
+    """
+    def __init__(self, server, domain, bind_user, login_password, sslverify=True):
+        """
+        Start up the module
+        """
+        self._version = None
+        self._threads = None
+        self._currentconnections = None
+        self._totalconnections = None
+        self._dtablesize = None
+        self._readwaiters = None
+        self._opsinitiated = None
+        self._opscompleted = None
+        self._entriessent = None
+        self._bytessent = None
+        self._currenttime = None
+        self._starttime = None
+        self._nbackends = None
+        # lmbd
+        self._readonly = None
+        self._entrycachehits = None
+        self._entrycachetries = None
+        self._entrycachehitratio = None
+        self._currententrycachecount = None
+        self._currententrycachesize = None
+        self._maxentrycachesize = None
+        self._dncachehitratio = None
+        self._dncachehits = None
+        self._dncachetries = None
+        self._currentdncachecount = None
+        self._currentdncachesize = None
+        self._maxdncachesize = None
+
+        # Login
+        self._monitor_basedn = 'cn=monitor'
+        self._lmdb_basedn = 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
+        self._domain = domain
+        self._basedn = 'dc=' + self._domain.replace('.', ',dc=')
+        #self._binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self._basedn
+        self._binddn = bind_user
+        self._bindpw = login_password
+        self._url = 'ldaps://' + server
+        #self._short_hostname = server.replace('.{}'.format(domain), '')
+        self._conn = self._get_conn()
+
+        if self._conn is False:
+            return None
+
+        self._fqdn = self._get_fqdn()
+        if self._fqdn is None:
+            # WARNING: If the account cannot read cn=config, we will fall back
+            # to the server name provided. This may or may not be a good idea.
+            self._fqdn = server
+
+        #self._short_hostname = self._fqdn.replace('.{}'.format(domain), '')
+
+        context = self._get_context()
+        if self._basedn != context:
+            return None
+
+    @staticmethod
+    def _get_ldap_msg(err):
+        """
+        LDAP Message Service
+        """
+        msg = err
+        if hasattr(err, 'message'):
+            msg = err.message
+            if 'desc' in err.message:
+                msg = err.message['desc']
+            elif hasattr(err, 'args'):
+                msg = err.args[0]['desc']
+        return msg
+
+    def _get_conn(self):
+        """
+        LDAP Connection service
+        """
+        # pylint: disable=no-member
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+
+        try:
+            lconn = ldap.initialize(self._url)
+            lconn.set_option(ldap.OPT_NETWORK_TIMEOUT, 3)
+            lconn.set_option(ldap.OPT_REFERRALS, ldap.OPT_OFF)
+            lconn.simple_bind_s(self._binddn, self._bindpw)
+        except(ldap.SERVER_DOWN):
+            return None
+        except(ldap.NO_SUCH_OBJECT):
+            return None
+        except(ldap.INVALID_CREDENTIALS):
+            return False
+
+        return lconn
+
+    def _search(self, base, lfilter, attrs=None, scope=ldap.SCOPE_SUBTREE):
+        """
+        LDAP Search Function - Everything uses this
+        """
+        try:
+            return self._conn.search_s(base, scope, lfilter, attrs)
+        except (ldap.NO_SUCH_OBJECT, ldap.SERVER_DOWN) as err:
+            print(err)
+            return False
+        except ldap.REFERRAL:
+            sys.exit(1)
+
+    def _get_context(self):
+        """
+        LDAP Context Service
+        """
+        results = self._search(
+            'cn=config',
+            '(objectClass=*)',
+            ['nsslapd-defaultnamingcontext'],
+            scope=ldap.SCOPE_BASE
+        )
+
+        if (not results and type(results) is not list) or len(results) == 0:
+            # falling back
+            #res = self._basedn
+            res = None
+        else:
+            dn, attrs = results[0]
+            res = attrs['nsslapd-defaultnamingcontext'][0].decode('utf-8')
+
+        return res
+
+    def _get_fqdn(self):
+        """
+        Get the FQDN of the host we're looking for
+        """
+        results = self._search(
+            'cn=config',
+            '(objectClass=*)',
+            ['nsslapd-localhost'],
+            scope=ldap.SCOPE_BASE
+        )
+
+        if (not results and type(results) is not list) or len(results) == 0:
+            # falling back
+            res = None
+        else:
+            dn, attrs = results[0]
+            res = attrs['nsslapd-localhost'][0].decode('utf-8')
+
+        return res
+
+    # monitor
+    def _get_version(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['version'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_threads(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['threads'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currentconnections(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['currentconnections'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_totalconnections(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['totalconnections'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_dtablesize(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['dtablesize'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_readwaiters(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['readwaiters'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_opsinitiated(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['opsinitiated'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_opscompleted(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['opscompleted'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_entriessent(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['entriessent'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_bytessent(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['bytessent'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currenttime(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['currenttime'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_starttime(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['starttime'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_nbackends(self):
+        results = self._search(
+                'cn=monitor',
+                '(objectClass=*)',
+                ['nbackends'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    # lmdb
+    def _get_readonly(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['readonly'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_entrycachehits(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['entrycachehits'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_entrycachetries(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['entrycachetries'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_entrycachehitratio(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['entrycachehitratio'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currententrycachecount(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['currententrycachecount'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currententrycachesize(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['currententrycachesize'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_maxentrycachesize(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['maxentrycachesize'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_dncachehitratio(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['dncachehitratio'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_dncachehits(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['dncachehits'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_dncachetries(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['dncachetries'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currentdncachecount(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['currentdncachecount'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_currentdncachesize(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['currentdncachesize'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    def _get_maxdncachesize(self):
+        results = self._search(
+                'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config',
+                '(objectClass=*)',
+                ['maxdncachesize'],
+                scope=ldap.SCOPE_BASE
+        )
+        return results
+
+    @property
+    def version(self):
+        if not self._version:
+            self._version = self._get_version()
+        return self._version
+
+    @property
+    def threads(self):
+        if not self._threads:
+            self._threads = self._get_threads()
+        return self._threads
+
+    @property
+    def currentconnections(self):
+        if not self._currentconnections:
+            self._currentconnections = self._get_currentconnections()
+        return self._currentconnections
+
+    @property
+    def totalconnections(self):
+        if not self._totalconnections:
+            self._totalconnections = self._get_totalconnections()
+        return self._totalconnections
+
+    @property
+    def dtablesize(self):
+        if not self._dtablesize:
+            self._dtablesize = self._get_dtablesize()
+        return self._dtablesize
+
+    @property
+    def readwaiters(self):
+        if not self._readwaiters:
+            self._readwaiters = self._get_readwaiters()
+        return self._readwaiters
+
+    @property
+    def opsinitiated(self):
+        if not self._opsinitiated:
+            self._opsinitiated = self._get_opsinitiated()
+        return self._opsinitiated
+
+    @property
+    def opscompleted(self):
+        if not self._opscompleted:
+            self._opscompleted = self._get_opscompleted()
+        return self._opscompleted
+
+    @property
+    def entriessent(self):
+        if not self._entriessent:
+            self._entriessent = self._get_entriessent()
+        return self._entriessent
+
+    @property
+    def bytessent(self):
+        if not self._bytessent:
+            self._bytessent = self._get_bytessent()
+        return self._bytessent
+
+    @property
+    def currenttime(self):
+        if not self._currenttime:
+            self._currenttime = self._get_currenttime()
+        return self._currenttime
+
+    @property
+    def starttime(self):
+        if not self._starttime:
+            self._starttime = self._get_starttime()
+        return self._starttime
+
+    @property
+    def nbackends(self):
+        if not self._nbackends:
+            self._nbackends = self._get_nbackends()
+        return self._nbackends
+
+    @property
+    def readonly(self):
+        if not self._readonly:
+            self._readonly = self._get_readonly()
+        return self._readonly
+
+    @property
+    def entrycachehits(self):
+        if not self._entrycachehits:
+            self._entrycachehits = self._get_entrycachehits()
+        return self._entrycachehits
+
+    @property
+    def entrycachetries(self):
+        if not self._entrycachetries:
+            self._entrycachetries = self._get_entrycachetries()
+        return self._entrycachetries
+
+    @property
+    def entrycachehitratio(self):
+        if not self._entrycachehitratio:
+            self._entrycachehitratio = self._get_entrycachehitratio()
+        return self._entrycachehitratio
+
+    @property
+    def currententrycachecount(self):
+        if not self._currententrycachecount:
+            self._currententrycachecount = self._get_currententrycachecount()
+        return self._currententrycachecount
+
+    @property
+    def currententrycachesize(self):
+        if not self._currententrycachesize:
+            self._currententrycachesize = self._get_currententrycachesize()
+        return self._currententrycachesize
+
+    @property
+    def maxentrycachesize(self):
+        if not self._maxentrycachesize:
+            self._maxentrycachesize = self._get_maxentrycachesize()
+        return self._maxentrycachesize
+
+    @property
+    def dncachehitratio(self):
+        if not self._dncachehitratio:
+            self._dncachehitratio = self._get_dncachehitratio()
+        return self._dncachehitratio
+
+    @property
+    def dncachehits(self):
+        if not self._dncachehits:
+            self._dncachehits = self._get_dncachehits()
+        return self._dncachehits
+
+    @property
+    def dncachetries(self):
+        if not self._dncachetries:
+            self._dncachetries = self._get_dncachetries()
+        return self._dncachetries
+
+    @property
+    def currentdncachecount(self):
+        if not self._currentdncachecount:
+            self._currentdncachecount = self._get_currentdncachecount()
+        return self._currentdncachecount
+
+    @property
+    def currentdncachesize(self):
+        if not self._currentdncachesize:
+            self._currentdncachesize = self._get_currentdncachesize()
+        return self._currentdncachesize
+
+    @property
+    def maxdncachesize(self):
+        if not self._maxdncachesize:
+            self._maxdncachesize = self._get_maxdncachesize()
+        return self._maxdncachesize
