@@ -84,7 +84,7 @@ if args.mode == "greater":
     if int_data > args.warning:
         print(f"OK: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_OK)
-    elif args.warning <= int_data < args.critical:
+    elif args.warning <= int_data > args.critical:
         print(f"WARN: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_WARN)
     else:
@@ -94,7 +94,7 @@ elif args.mode == "lesser":
     if int_data < args.warning:
         print(f"OK: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_OK)
-    elif args.warning >= int_data > args.critical:
+    elif args.warning >= int_data < args.critical:
         print(f"WARN: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_WARN)
     else:
