@@ -1273,3 +1273,7 @@ class monitorldap(object):
         if not self._maxdncachesize:
             self._maxdncachesize = self._get_maxdncachesize()
         return self._maxdncachesize
+
+    #@property
+    #def all_attrs(self):
+    #    return dict(vars(self), )
