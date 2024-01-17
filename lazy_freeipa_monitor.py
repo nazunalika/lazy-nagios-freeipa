@@ -78,23 +78,34 @@ if not args.warning or not args.critical or not args.mode:
     print("ERROR: You must provide a WARNING, CRITICAL, and MODE values. See --help")
     sys.exit(CODES.STATUS_DEPENDENT)
 
+if args.mode == "lesser" and args.critical >= args.warning:
+    print("ERROR: Using lesser mode, warning should be greater than critical")
+    sys.exit(CODES.STATUS_UNKNOWN)
+if args.mode == "greater" and args.warning >= args.critical:
+    print("ERROR: Using greater mode, warning should be lesser than critical")
+    sys.exit(CODES.STATUS_UNKNOWN)
+
 # The rest of the attributes are int
 int_data = int(requested_data)
 if args.mode == "greater":
-    if int_data > args.warning:
+    if int_data < args.warning:
         print(f"OK: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_OK)
-    elif args.warning <= int_data > args.critical:
+    # disabling this check. the chained causes problems
+    # pylint: disable=chained-comparison
+    elif int_data >= args.warning and int_data < args.critical:
         print(f"WARN: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_WARN)
     else:
         print(f"CRIT: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_CRIT)
 elif args.mode == "lesser":
-    if int_data < args.warning:
+    if int_data > args.warning:
         print(f"OK: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_OK)
-    elif args.warning >= int_data < args.critical:
+    # disabling this check. the chained causes problems
+    # pylint: disable=chained-comparison
+    elif int_data <= args.warning and int_data > args.critical:
         print(f"WARN: {args.type} at {str(int_data)}")
         sys.exit(CODES.STATUS_WARN)
     else:
