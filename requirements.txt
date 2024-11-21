@@ -1,3 +1,4 @@
 requests
+requests-gssapi
 python-ldap
 dnspython
