@@ -10,7 +10,7 @@ from lib import monitorldap
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--domain", help="IPA Domain", required=True)
-parser.add_argument("--binddn", help="Full bind dn of the user (eg cn=Directory Manager)", required=True)
+parser.add_argument("--username", help="Full bind dn of the user (eg cn=Directory Manager) or username", required=True)
 parser.add_argument("--password", help="Bind password", required=True)
 parser.add_argument("--warning", help="Warning Limit", type=int)
 parser.add_argument("--critical", help="Critical Limit", type=int)
@@ -56,7 +56,7 @@ args = parser.parse_args()
 server = args.server
 
 # Verify that the user can login or that the domain controller is up
-login_check = monitorldap(server, args.domain, args.binddn, args.password)
+login_check = monitorldap(server, args.domain, args.username, args.password)
 if login_check._conn is None:
     print('Unable to contact {}'.format(server))
     sys.exit(CODES.STATUS_UNKNOWN)

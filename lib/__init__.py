@@ -9,6 +9,7 @@ import logging
 import string
 import requests
 import ldap
+import ldap.dn
 import dns.resolver
 
 class CODES:
@@ -210,8 +211,10 @@ class ipaldap(object):
         # Login
         self._domain = domain
         self._basedn = 'dc=' + self._domain.replace('.', ',dc=')
-        #self._binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self._basedn
         self._binddn = bind_user
+        if not ldap.dn.is_dn(bind_user):
+            self._binddn = 'uid=' + bind_user + ',cn=users,cn=accounts,' + self._basedn
+
         self._bindpw = login_password
         self._url = 'ldaps://' + server
         self._short_hostname = server.replace('.{}'.format(domain), '')
@@ -772,8 +775,9 @@ class monitorldap(object):
         self._lmdb_basedn = 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
         self._domain = domain
         self._basedn = 'dc=' + self._domain.replace('.', ',dc=')
-        #self._binddn = 'uid=' + self.login_user + ',cn=users,cn=accounts,' + self._basedn
         self._binddn = bind_user
+        if not ldap.dn.is_dn(bind_user):
+            self._binddn = 'uid=' + bind_user + ',cn=users,cn=accounts,' + self._basedn
         self._bindpw = login_password
         self._url = 'ldaps://' + server
         #self._short_hostname = server.replace('.{}'.format(domain), '')

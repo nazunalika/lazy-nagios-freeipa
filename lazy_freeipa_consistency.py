@@ -11,7 +11,7 @@ from lib import ipadns
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--domain", help="IPA Domain", required=True)
-parser.add_argument("--binddn", help="Full bind dn of the user (eg cn=Directory Manager)", required=True)
+parser.add_argument("--username", help="Full bind dn of the user (eg cn=Directory Manager) or username", required=True)
 parser.add_argument("--password", help="Bind password", required=True)
 parser.add_argument("--initial-master", help="Initial replica to contact", required=False)
 parser.add_argument(
@@ -46,7 +46,7 @@ if server_to_check not in all_dcs:
     sys.exit(CODES.STATUS_DEPENDENT)
 
 # Verify that the user can login or that the domain controller is up
-login_check = ipaldap(server_to_check, args.domain, args.binddn, args.password)
+login_check = ipaldap(server_to_check, args.domain, args.username, args.password)
 if login_check._conn is None:
     print('Unable to contact {}'.format(server_to_check))
     sys.exit(CODES.STATUS_UNKNOWN)
@@ -59,7 +59,7 @@ if login_check._conn is False:
 server_dict = {}
 results = {}
 for host in all_dcs:
-    server_dict[host] = ipaldap(host, args.domain, args.binddn, args.password)
+    server_dict[host] = ipaldap(host, args.domain, args.username, args.password)
 
 # Number of users/groups/etc not in sync are a WARN if under 5, CRIT if over.
 #users = [getattr(server, 'users') for server in server_dict.values()]
