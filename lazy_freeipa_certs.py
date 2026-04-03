@@ -14,6 +14,7 @@ parser.add_argument("--username", help="host to connect to", required=True)
 parser.add_argument("--password", help="host to connect to", required=True)
 parser.add_argument("--api-version", help="host to connect to", default="2.245")
 parser.add_argument("--span", help="span of time", default=30, type=int)
+parser.add_argument("--valid-only", help="show only valid certs", action='store_true')
 parser.add_argument("--verbose", help="Verbose mode", action='store_true')
 parser.add_argument(
         "--disable-ssl-check",
@@ -34,6 +35,9 @@ params = {
         'validnotafter_to': end.strftime('%Y-%m-%d'),
         'all': True,
 }
+
+if args.valid_only:
+    params['status'] = 'VALID'
 
 try:
     API = ipaapi(
